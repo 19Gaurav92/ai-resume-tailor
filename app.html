@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Builder - AI Resume Tailor</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="container">
+            <a href="index.html" class="logo">AI Resume Tailor</a>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="app.html" class="active">Build Resume</a></li>
+                <li><a href="templates.html">Templates</a></li>
+                <li><a href="pricing.html">Pricing</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="app-section">
+        <div class="container">
+            <h1>AI-Powered Resume Builder</h1>
+            <p class="subtitle">Upload your resume and job description to get an ATS-optimized version instantly</p>
+
+            <div class="app-container">
+                <div class="upload-section">
+                    <h2>Step 1: Upload Your Resume</h2>
+                    <div class="upload-box">
+                        <input type="file" id="resumeUpload" accept=".pdf,.doc,.docx,.txt" hidden>
+                        <label for="resumeUpload" class="upload-label">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <p>Click to upload or drag and drop</p>
+                            <span>PDF, DOC, DOCX, TXT (Max 10MB)</span>
+                        </label>
+                        <div id="fileName" class="file-name"></div>
+                    </div>
+
+                    <h2>Step 2: Enter Job Description</h2>
+                    <textarea id="jobDescription" placeholder="Paste the job description here..." rows="8"></textarea>
+
+                    <h2>Step 3: Select Template (Optional)</h2>
+                    <div class="template-selector">
+                        <div class="template-option" data-template="modern">
+                            <div class="template-preview">Modern</div>
+                        </div>
+                        <div class="template-option" data-template="classic">
+                            <div class="template-preview">Classic</div>
+                        </div>
+                        <div class="template-option" data-template="minimal">
+                            <div class="template-preview">Minimal</div>
+                        </div>
+                    </div>
+
+                    <h2>Step 4: Enter API Key</h2>
+                    <input type="password" id="apiKey" placeholder="Enter your OpenAI API key" class="api-input">
+                    <p class="api-note">Your API key is never stored and only used for this session</p>
+
+                    <button id="generateBtn" class="cta-button primary">Generate Tailored Resume</button>
+                </div>
+
+                <div class="results-section" id="resultsSection" style="display: none;">
+                    <h2>Your Optimized Resume</h2>
+                    
+                    <div class="match-score">
+                        <h3>Match Score</h3>
+                        <div class="score-circle">
+                            <span id="matchScore">0</span>%
+                        </div>
+                        <p id="matchDescription">Analyzing your resume...</p>
+                    </div>
+
+                    <div class="result-content">
+                        <h3>Tailored Resume Content</h3>
+                        <div id="resumeContent" class="content-box"></div>
+                        <button class="download-btn" onclick="downloadResume()">Download Resume</button>
+                    </div>
+
+                    <div class="bonus-features">
+                        <div class="bonus-card">
+                            <h3>Cover Letter</h3>
+                            <div id="coverLetter" class="content-box"></div>
+                            <button class="download-btn" onclick="downloadCoverLetter()">Download Cover Letter</button>
+                        </div>
+
+                        <div class="bonus-card">
+                            <h3>LinkedIn Summary</h3>
+                            <div id="linkedinSummary" class="content-box"></div>
+                            <button class="download-btn" onclick="copyLinkedIn()">Copy to Clipboard</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="loading" id="loadingState" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Analyzing your resume and generating optimized version...</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 AI Resume Tailor. All rights reserved.</p>
+            <div class="footer-links">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#">Contact</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        // Initialize file upload
+        const fileInput = document.getElementById('resumeUpload');
+        const fileName = document.getElementById('fileName');
+        const generateBtn = document.getElementById('generateBtn');
+        const loadingState = document.getElementById('loadingState');
+        const resultsSection = document.getElementById('resultsSection');
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                fileName.textContent = `Selected: ${file.name}`;
+                fileName.style.display = 'block';
+            }
+        });
+
+        // Template selection
+        const templateOptions = document.querySelectorAll('.template-option');
+        let selectedTemplate = 'modern';
+
+        templateOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                templateOptions.forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                selectedTemplate = option.dataset.template;
+            });
+        });
+
+        // Set first template as default
+        templateOptions[0].classList.add('selected');
+
+        // Generate button handler
+        generateBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            const jobDesc = document.getElementById('jobDescription').value;
+            const apiKey = document.getElementById('apiKey').value;
+
+            if (!file) {
+                alert('Please upload your resume');
+                return;
+            }
+
+            if (!jobDesc) {
+                alert('Please enter the job description');
+                return;
+            }
+
+            if (!apiKey) {
+                alert('Please enter your OpenAI API key');
+                return;
+            }
+
+            // Show loading state
+            loadingState.style.display = 'block';
+            resultsSection.style.display = 'none';
+
+            try {
+                // Read resume file
+                const resumeText = await readFileAsText(file);
+
+                // Call OpenAI API
+                const tailoredResume = await callOpenAI(resumeText, jobDesc, apiKey);
+                const matchScore = calculateMatchScore(resumeText, jobDesc);
+
+                // Generate cover letter and LinkedIn summary
+                const coverLetter = await callOpenAIForCoverLetter(resumeText, jobDesc, apiKey);
+                const linkedInSummary = await callOpenAIForLinkedIn(resumeText, apiKey);
+
+                // Display results
+                document.getElementById('matchScore').textContent = matchScore;
+                document.getElementById('matchDescription').textContent = getScoreDescription(matchScore);
+                document.getElementById('resumeContent').innerHTML = formatResumeContent(tailoredResume);
+                document.getElementById('coverLetter').innerHTML = formatResumeContent(coverLetter);
+                document.getElementById('linkedinSummary').innerHTML = formatResumeContent(linkedInSummary);
+
+                // Show results
+                loadingState.style.display = 'none';
+                resultsSection.style.display = 'block';
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (error) {
+                loadingState.style.display = 'none';
+                alert('Error: ' + error.message);
+            }
+        });
+
+        // Helper functions
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+
+        function getScoreDescription(score) {
+            if (score >= 80) return 'Excellent match! Your resume aligns well with the job requirements.';
+            if (score >= 60) return 'Good match with room for improvement.';
+            if (score >= 40) return 'Moderate match. Consider highlighting more relevant skills.';
+            return 'Low match. Significant improvements recommended.';
+        }
+
+        function formatResumeContent(content) {
+            return content.replace(/\n/g, '<br>');
+        }
+
+        function downloadResume() {
+            const content = document.getElementById('resumeContent').innerText;
+            downloadAsFile(content, 'tailored_resume.txt');
+        }
+
+        function downloadCoverLetter() {
+            const content = document.getElementById('coverLetter').innerText;
+            downloadAsFile(content, 'cover_letter.txt');
+        }
+
+        function copyLinkedIn() {
+            const content = document.getElementById('linkedinSummary').innerText;
+            navigator.clipboard.writeText(content).then(() => {
+                alert('LinkedIn summary copied to clipboard!');
+            });
+        }
+
+        function downloadAsFile(content, filename) {
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
